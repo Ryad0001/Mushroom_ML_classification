@@ -1,0 +1,14 @@
+version: '3.8'
+
+networks:
+  serving_prod_net:
+    external: true # Récupère le réseau déjà créé par le dossier 'serving' 
+
+services:
+  webapp:
+    build: .
+    container_name: webapp
+    ports:
+      - "8081:8081" # Accès via http://localhost:8081
+    networks:
+      - serving_prod_net

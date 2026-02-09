@@ -1,0 +1,14 @@
+# reporting/docker-compose.yml
+services:
+  reporting:
+    build: .
+    ports:
+      - "8082:8082" # Accès au dashboard
+    volumes:
+      - ../data:/data
+    networks:
+      - serving_prod_net
+
+networks:
+  serving_prod_net:
+    external: true

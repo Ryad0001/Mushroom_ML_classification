@@ -1,0 +1,17 @@
+version: '3.8'
+
+networks:
+  prod_net:
+    driver: bridge # Crée le réseau pour que les futurs conteneurs se parlent [cite: 78, 80, 81]
+
+services:
+  serving-api:
+    build: .
+    container_name: serving-api
+    ports:
+      - "8080:8080" # Relie le port 8080 du conteneur à votre machine 
+    volumes:
+      - ../data:/data
+      - ../artifacts:/artifacts # Donne accès aux fichiers .pickle 
+    networks:
+      - prod_net
