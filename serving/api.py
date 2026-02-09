@@ -56,6 +56,8 @@ def retrain_model_on_all_data():
     prod_df = pd.read_csv("/data/prod_data.csv")
     
     # 2. Fusionner
+    # Nettoyage préventif (gestion des lignes vides ou malformées)
+    prod_df.dropna(inplace=True)
     # On garde les colonnes PCA et target pour l'entraînement
     features_cols = ["PCA 1", "PCA 2", "PCA 3"]
     target_col = "target"
