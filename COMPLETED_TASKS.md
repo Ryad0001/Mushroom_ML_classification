@@ -17,6 +17,7 @@ Ce document détaille l'ensemble des tâches techniques accomplies pour répondr
 - [x] Développement de `webapp/api.py` pour l'upload et la prédiction.
 - [x] Communication inter-conteneurs via le service Docker `serving-api`.
 - [x] **Correctif State Management** : Intégration de `st.session_state` pour empêcher la disparition de l'UI lors des interactions de feedback.
+- [x] **Batch Testing & Feedback** : Support du traitement de fichiers CSV entiers et envoi de feedback groupé pour tester le ré-entraînement massif.
 - [x] Dockerisation et intégration au réseau `serving_prod_net`.
 
 ## 📊 IV. Reporting (Evidently)
