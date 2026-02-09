@@ -53,33 +53,57 @@ if uploaded_file is not None:
         preds = st.session_state.predictions
         obs_list = st.session_state.observations
         
-        # Affichage sous forme de tableau
-        results_df = pd.DataFrame({
-            "Mushroom #": range(1, len(preds) + 1),
-            "Prediction": preds
-        })
-        st.table(results_df)
-        
         st.write("---")
-        st.subheader("Feedback en masse")
-        st.write("Soumettez les labels réels pour toutes les observations ci-dessus.")
-        bulk_class = st.radio("Sont-ils tous ?", ["Edible", "Poisonous"], key="bulk_radio")
+        st.subheader("Validation des Résultats")
+        st.write("Vérifiez les prédictions et corrigez la colonne 'True Class' si nécessaire.")
 
-        if st.button("Envoyer le Feedback pour TOUT le fichier"):
+        # Préparation du DataFrame éditable
+        # On pré-remplit "True Class" avec la prédiction (l'utilisateur corrige juste les erreurs)
+        df_init = pd.DataFrame({
+            "Mushroom Index": range(len(preds)),
+            "Prediction": preds,
+            "True Class": preds # Par défaut, on suppose que le modèle a raison
+        })
+
+        # Widget d'édition interactif
+        edited_df = st.data_editor(
+            df_init,
+            column_config={
+                "Mushroom Index": st.column_config.NumberColumn(disabled=True),
+                "Prediction": st.column_config.TextColumn(disabled=True),
+                "True Class": st.column_config.SelectboxColumn(
+                    "Label Réel",
+                    options=["Edible", "Poisonous"],
+                    help="Sélectionnez la classe réelle observée",
+                    required=True
+                )
+            },
+            disabled=["Mushroom Index", "Prediction"],
+            hide_index=True,
+            use_container_width=True
+        )
+
+        if st.button("Valider et Envoyer les Feedbacks"):
             import os
             api_base_url = os.getenv("API_URL", "http://serving-api:8080")
             success_count = 0
             error_count = 0
             
             progress_bulk = st.progress(0)
-            total = len(obs_list)
+            total = len(preds)
             
-            for i in range(total):
+            # On itère sur le DataFrame édité
+            for i, row in edited_df.iterrows():
+                # On récupère l'index d'origine pour retrouver l'observation correspondante
+                idx = row["Mushroom Index"]
+                true_label = row["True Class"]
+                
                 feedback_payload = {
-                    "observation": obs_list[i],
-                    "prediction": preds[i],
-                    "target": "True" if bulk_class == "Poisonous" else "False"
+                    "observation": obs_list[idx],
+                    "prediction": preds[idx],
+                    "target": "True" if true_label == "Poisonous" else "False"
                 }
+                
                 try:
                     res = requests.post(f"{api_base_url}/feedback", json=feedback_payload)
                     if res.status_code == 200:
@@ -90,13 +114,13 @@ if uploaded_file is not None:
                     error_count += 1
                 progress_bulk.progress((i + 1) / total)
             
-            st.success(f"Terminé ! {success_count} feedbacks envoyés avec succès. ✅")
+            st.success(f"Traitement terminé ! {success_count} feedbacks envoyés. ✅")
             if error_count > 0:
-                st.warning(f"{error_count} erreurs rencontrées.")
+                st.warning(f"{error_count} erreurs pendant l'envoi.")
             
-            # Message spécial si le ré-entraînement a dû être déclenché
             if success_count >= 10:
-                st.info("💡 Note : Le seuil de 10 ayant été atteint, le modèle a été ré-entraîné automatiquement.")
+                st.balloons()
+                st.info("🎯 Seuil de ré-entraînement atteint ! Le modèle s'est mis à jour.")
 else:
     st.session_state.predictions = None
     st.session_state.observations = None
