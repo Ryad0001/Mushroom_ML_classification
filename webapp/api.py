@@ -8,67 +8,78 @@ st.write("Uploadez les caractéristiques d'un champignon pour savoir s'il est co
 # 1. Interface d'upload (selon l'énoncé )
 uploaded_file = st.file_uploader("Choisissez un fichier CSV contenant une observation", type="csv")
 
-# --- INITIALISATION DU STATE ---
-if "prediction" not in st.session_state:
-    st.session_state.prediction = None
-if "observation" not in st.session_state:
-    st.session_state.observation = None
+if "predictions" not in st.session_state:
+    st.session_state.predictions = None
+if "observations" not in st.session_state:
+    st.session_state.observations = None
 
 if uploaded_file is not None:
-    data = pd.read_csv(uploaded_file)
+    data = pd.read_csv(uploaded_file, header=None)
     st.write("Données chargées :", data)
     
     # 2. Bouton Prédire
-    if st.button("Prédire"):
+    if st.button("Prédire tout le fichier"):
         import os
         api_base_url = os.getenv("API_URL", "http://serving-api:8080")
         api_url = f"{api_base_url}/predict"
         
-        # On transforme la première ligne du CSV en liste pour l'API
-        observation = data.values[0].tolist()
-        payload = {"observation": observation}
+        predictions = []
+        observations = []
         
-        try:
-            response = requests.post(api_url, json=payload)
-            # On stocke dans le session_state pour persister au rerun
-            st.session_state.prediction = response.json()["prediction"]
-            st.session_state.observation = observation
-        except Exception as e:
-            st.error(f"Erreur de connexion à l'API : {e}")
+        progress_bar = st.progress(0)
+        num_rows = len(data)
+        
+        for i in range(num_rows):
+            observation = data.iloc[i].values.tolist()
+            try:
+                response = requests.post(api_url, json={"observation": observation})
+                if response.status_code == 200:
+                    pred = response.json()["prediction"]
+                    predictions.append(pred)
+                    observations.append(observation)
+                else:
+                    predictions.append("Error")
+                    observations.append(observation)
+            except Exception as e:
+                predictions.append(f"Connection Error: {e}")
+                observations.append(observation)
+            progress_bar.progress((i + 1) / num_rows)
+            
+        st.session_state.predictions = predictions
+        st.session_state.observations = observations
 
-    # --- AFFICHAGE PERSISTANT DU RÉSULTAT ET FEEDBACK ---
-    if st.session_state.prediction:
-        prediction = st.session_state.prediction
-        observation = st.session_state.observation
-        import os
-        api_base_url = os.getenv("API_URL", "http://serving-api:8080")
+    # --- AFFICHAGE PERSISTANT ---
+    if st.session_state.predictions:
+        preds = st.session_state.predictions
+        obs_list = st.session_state.observations
         
-        # 3. Affichage du résultat
-        if prediction == "Edible":
-            st.success(f"Résultat : {prediction} ✅")
-        else:
-            st.error(f"Résultat : {prediction} ⚠️")
+        # Affichage sous forme de tableau
+        results_df = pd.DataFrame({
+            "Mushroom #": range(1, len(preds) + 1),
+            "Prediction": preds
+        })
+        st.table(results_df)
         
-        # --- FEEDBACK UI ---
         st.write("---")
-        st.subheader("Aidez-nous à améliorer le modèle")
-        real_class = st.radio("Quelle était la classe réelle ?", ["Edible", "Poisonous"])
+        st.subheader("Feedback pour le dernier champignon du fichier")
+        real_class = st.radio("Pour le dernier champignon, quelle était la classe réelle ?", ["Edible", "Poisonous"])
 
         if st.button("Envoyer le Feedback"):
+            import os
+            api_base_url = os.getenv("API_URL", "http://serving-api:8080")
             feedback_payload = {
-                "observation": observation,
-                "prediction": prediction,
-                "target": "True" if real_class == "Poisonous" else "False" # Target logic as requested: Poisonous=True, Edible=False
+                "observation": obs_list[-1],
+                "prediction": preds[-1],
+                "target": "True" if real_class == "Poisonous" else "False"
             }
             try:
                 res = requests.post(f"{api_base_url}/feedback", json=feedback_payload)
                 if res.status_code == 200:
-                    st.success("Merci pour votre retour ! 📝")
+                    st.success("Merci ! Feedback enregistré pour le dernier échantillon. 📝")
                 else:
-                    st.error(f"Erreur lors de l'envoi du feedback: {res.text}")
+                    st.error(f"Erreur : {res.text}")
             except Exception as e:
-                st.error(f"Erreur de connexion à l'API de feedback : {e}")
+                st.error(f"Erreur de connexion : {e}")
 else:
-    # Reset si le fichier est enlevé
-    st.session_state.prediction = None
-    st.session_state.observation = None
+    st.session_state.predictions = None
+    st.session_state.observations = None
