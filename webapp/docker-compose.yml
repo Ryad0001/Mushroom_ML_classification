@@ -2,13 +2,17 @@ version: '3.8'
 
 networks:
   serving_prod_net:
-    external: true # Récupère le réseau déjà créé par le dossier 'serving' 
+    external: true
 
 services:
   webapp:
-    build: .
     container_name: webapp
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8081:8081" # Accès via http://localhost:8081
+      - "8081:8081"
+    environment:
+      - API_URL=http://serving-api:8080
     networks:
       - serving_prod_net

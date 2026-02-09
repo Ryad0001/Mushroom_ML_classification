@@ -13,9 +13,10 @@ if uploaded_file is not None:
     st.write("Données chargées :", data)
     
     if st.button("Prédire"):
-        # 2. Préparation de la requête pour l'API [cite: 71]
-        # Notez l'URL spéciale : 'serving-api' est le nom du service Docker [cite: 72, 82]
-        api_url = "http://serving-api:8080/predict"
+        # 2. Préparation de la requête pour l'API
+        import os
+        api_base_url = os.getenv("API_URL", "http://serving-api:8080")
+        api_url = f"{api_base_url}/predict"
         
         # On transforme la première ligne du CSV en liste pour l'API
         observation = data.values[0].tolist()
@@ -43,7 +44,7 @@ if uploaded_file is not None:
                     "target": "True" if real_class == "Poisonous" else "False" # Target logic as requested: Poisonous=True, Edible=False
                 }
                 try:
-                    res = requests.post("http://serving-api:8080/feedback", json=feedback_payload)
+                    res = requests.post(f"{api_base_url}/feedback", json=feedback_payload)
                     if res.status_code == 200:
                         st.success("Merci pour votre retour ! 📝")
                     else:

@@ -110,7 +110,10 @@ async def feedback(data: dict):
         
         # 4. Sauvegarder dans /data/prod_data.csv
         df_prod_row = pd.DataFrame([new_row])
-        df_prod_row.to_csv("/data/prod_data.csv", mode='a', header=False, index=False)
+        # Check if file exists to decide on header
+        import os
+        header = not os.path.exists("/data/prod_data.csv")
+        df_prod_row.to_csv("/data/prod_data.csv", mode='a', header=header, index=False)
         
         # 5. Vérification du seuil K=10
         df_prod = pd.read_csv("/data/prod_data.csv")

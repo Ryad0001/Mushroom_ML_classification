@@ -1,0 +1,11 @@
+{
+  "id": "e272c724-bbd8-4e4a-9457-171c423e9747",
+  "name": "Mushroom Monitoring",
+  "description": null,
+  "dashboard": {
+    "name": "Mushroom Monitoring",
+    "panels": []
+  },
+  "date_from": null,
+  "date_to": null
+}

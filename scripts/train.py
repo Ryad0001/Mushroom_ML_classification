@@ -10,9 +10,11 @@ df = pd.read_csv('../data/mushrooms.csv')
 
 # 2. Encodage des données catégorielles
 # On transforme les lettres en chiffres
-le = LabelEncoder()
+encoders = {}
 for col in df.columns:
+    le = LabelEncoder()
     df[col] = le.fit_transform(df[col])
+    encoders[col] = le
 
 X = df.drop('class', axis=1)
 y = df['class'] # Target: 1 pour poisonous, 0 pour edible
@@ -43,6 +45,9 @@ with open('../artifacts/model.pickle', 'wb') as f:
 
 with open('../artifacts/pca.pickle', 'wb') as f:
     pickle.dump(pca, f)
+
+with open('../artifacts/encoders.pickle', 'wb') as f:
+    pickle.dump(encoders, f)
 
 with open('../artifacts/scaler.pickle', 'wb') as f:
     pickle.dump(scaler, f)
