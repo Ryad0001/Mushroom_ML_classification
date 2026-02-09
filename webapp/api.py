@@ -61,25 +61,42 @@ if uploaded_file is not None:
         st.table(results_df)
         
         st.write("---")
-        st.subheader("Feedback pour le dernier champignon du fichier")
-        real_class = st.radio("Pour le dernier champignon, quelle était la classe réelle ?", ["Edible", "Poisonous"])
+        st.subheader("Feedback en masse")
+        st.write("Soumettez les labels réels pour toutes les observations ci-dessus.")
+        bulk_class = st.radio("Sont-ils tous ?", ["Edible", "Poisonous"], key="bulk_radio")
 
-        if st.button("Envoyer le Feedback"):
+        if st.button("Envoyer le Feedback pour TOUT le fichier"):
             import os
             api_base_url = os.getenv("API_URL", "http://serving-api:8080")
-            feedback_payload = {
-                "observation": obs_list[-1],
-                "prediction": preds[-1],
-                "target": "True" if real_class == "Poisonous" else "False"
-            }
-            try:
-                res = requests.post(f"{api_base_url}/feedback", json=feedback_payload)
-                if res.status_code == 200:
-                    st.success("Merci ! Feedback enregistré pour le dernier échantillon. 📝")
-                else:
-                    st.error(f"Erreur : {res.text}")
-            except Exception as e:
-                st.error(f"Erreur de connexion : {e}")
+            success_count = 0
+            error_count = 0
+            
+            progress_bulk = st.progress(0)
+            total = len(obs_list)
+            
+            for i in range(total):
+                feedback_payload = {
+                    "observation": obs_list[i],
+                    "prediction": preds[i],
+                    "target": "True" if bulk_class == "Poisonous" else "False"
+                }
+                try:
+                    res = requests.post(f"{api_base_url}/feedback", json=feedback_payload)
+                    if res.status_code == 200:
+                        success_count += 1
+                    else:
+                        error_count += 1
+                except:
+                    error_count += 1
+                progress_bulk.progress((i + 1) / total)
+            
+            st.success(f"Terminé ! {success_count} feedbacks envoyés avec succès. ✅")
+            if error_count > 0:
+                st.warning(f"{error_count} erreurs rencontrées.")
+            
+            # Message spécial si le ré-entraînement a dû être déclenché
+            if success_count >= 10:
+                st.info("💡 Note : Le seuil de 10 ayant été atteint, le modèle a été ré-entraîné automatiquement.")
 else:
     st.session_state.predictions = None
     st.session_state.observations = None
