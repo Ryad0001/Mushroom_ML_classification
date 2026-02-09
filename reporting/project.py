@@ -22,27 +22,31 @@ def generate_report():
         ref_data = pd.read_csv(REF_PATH)
         prod_data = pd.read_csv(PROD_PATH)
 
-        # Harmonisation des types pour la target (Expert: essential for metrics)
-        map_dict = {'True': True, 'False': False, True: True, False: False, 1: True, 0: False}
-        if 'target' in ref_data.columns:
-            ref_data['target'] = ref_data['target'].map(map_dict)
-        if 'target' in prod_data.columns:
-            prod_data['target'] = prod_data['target'].map(map_dict)
+        # Harmonisation des types (Expert: integers are more stable for metrics calculation)
+        map_dict = {True: 1, False: 0, 1: 1, 0: 0, 'True': 1, 'False': 0}
+        ref_data['target'] = ref_data['target'].map(map_dict).fillna(0).astype(int)
+        ref_data['prediction'] = ref_data['prediction'].map(map_dict).fillna(0).astype(int)
+        prod_data['target'] = prod_data['target'].map(map_dict).fillna(0).astype(int)
         
-        # TD REQUIREMENT: Use ColumnMapping (Exact syntax for v0.4.0)
+        # Handle production predictions which might be strings 'Poisonous'/'Edible'
+        if prod_data['prediction'].dtype == object:
+            prod_data['prediction'] = prod_data['prediction'].map({'Poisonous': 1, 'Edible': 0}).fillna(0).astype(int)
+        else:
+            prod_data['prediction'] = prod_data['prediction'].map(map_dict).fillna(0).astype(int)
+        
+        # TD REQUIREMENT: Use ColumnMapping
         column_mapping = ColumnMapping()
         column_mapping.target = 'target'
         column_mapping.prediction = 'prediction'
         column_mapping.numerical_features = ['PCA 1', 'PCA 2', 'PCA 3']
+        column_mapping.task = 'classification'
         
         # 1. Génération du Rapport
         # TD REQUIREMENT: Inclus le Data Drift et les métriques de classification (F1, Accuracy, Recall, Precision)
-        # Expert MLOps: Use robust metrics that work well with label-only data
-        from evidently.metrics import ClassificationQualityMetric, DatasetDriftMetric, ColumnDriftMetric
+        from evidently.metrics import ClassificationQualityMetric, DatasetDriftMetric
         report = Report(metrics=[
             ClassificationQualityMetric(),  # Inclus Accuracy, Precision, Recall, F1
             DatasetDriftMetric(),
-            ColumnDriftMetric(column_name="target"),
         ])
 
         print("Calcul des métriques (Classification et Drift)...")
@@ -61,7 +65,10 @@ def generate_report():
         else:
             snapshot = report.to_snapshot()
 
-        workspace.add_run(project.id, snapshot)
+        if hasattr(workspace, "add_snapshot"):
+            workspace.add_snapshot(project.id, snapshot)
+        else:
+            workspace.add_run(project.id, snapshot)
         print("Rapport généré avec succès dans le workspace.")
 
     except Exception as e:
