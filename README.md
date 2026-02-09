@@ -1,75 +1,94 @@
-# Mushroom Classification - MLOps Project
+# 🍄 Mushroom ML-Classification Project
 
-This project implements a complete end-to-end machine learning pipeline for Mushroom classification (Edible vs Poisonous), following strict technical documentation requirements.
+Bienvenue sur le projet de classification de champignons, conçu dans le cadre du module "Mise en production et déploiement continu".
 
-## 🏗️ Architecture
+Ce projet implémente une **chaîne MLOps complète** :
+1.  **Serving API** (FastAPI) pour les prédictions en temps réel.
+2.  **Web App** (Streamlit) pour l'interface utilisateur.
+3.  **Monitoring** (Evidently) pour surveiller la dérive des données (Data Drift) et la performance.
+4.  **Continuous Deployment** avec ré-entraînement automatique.
 
-The project is orchestrated using **Docker Compose**, splitting the system into three independent services communicating over a shared network (`serving_prod_net`).
+---
 
-*   **Serving API (FastAPI)**: Port `8080`. Manages model inference and the feedback loop.
-*   **Web Application (Streamlit)**: Port `8081`. User interface for predictions and feedback submission.
-*   **Reporting (Evidently)**: Port `8082`. Monitoring dashboard for Data Drift and Classification metrics (F1, Accuracy, Precision, Recall).
+## 🚀 Comment Lancer le Projet (Quickstart)
 
-## 📂 Project Structure
+### Pré-requis
+- Docker Desktop installé et lancé.
+- Git.
 
-```text
-.
-├── artifacts/          # ML Models (pickle), Scalers, and Embeddings
-├── data/               # Datasets (ref_data.csv, prod_data.csv)
-├── scripts/            # Training scripts and EDA notebooks
-├── serving/            # FastAPI code, Dockerfile, and Compose
-├── webapp/             # Streamlit code, Dockerfile, and Compose
-├── reporting/          # Evidently monitoring script, UI, and Compose
-└── README.md           # Project documentation
+### Étape 1 : Récupérer le code
+```bash
+git clone <VOTRE_REPO_GIT>
+cd ML-classification
 ```
 
-## 🚀 Getting Started
-
-Ensure you have Docker and Docker Compose installed.
-
-### 1. Launch Services
-Run the following commands from the root directory:
+### Étape 2 : Lancer les services
+Exécutez simplement les commandes suivantes dans votre terminal :
 
 ```bash
-# Start the Serving API (Creates the network)
+# 1. Lancer l'API de prédiction
 docker compose -f serving/docker-compose.yml up --build -d
 
-# Start the Webapp
+# 2. Lancer l'Application Web
 docker compose -f webapp/docker-compose.yml up --build -d
 
-# Start the Monitoring
+# 3. Lancer le système de Monitoring
 docker compose -f reporting/docker-compose.yml up --build -d
 ```
 
-### 2. Access the Applications
-*   **Web Interface**: [http://localhost:8081](http://localhost:8081)
-*   **API Documentation**: [http://localhost:8080/docs](http://localhost:8080/docs)
-*   **Monitoring Dashboard**: [http://localhost:8082](http://localhost:8082)
+> **Note Mac/Linux** : Si vous avez des erreurs de permission, ajoutez `DOCKER_BUILDKIT=0` devant les commandes `docker compose`.
 
-## 🔄 Continuous Deployment
+---
 
-### Model Re-training Trigger
-The system includes an automated re-training loop triggered by user feedback:
-1.  Users provide feedback via the web app (Target vs Prediction).
-2.  Data is embedded (PCA) and appended to `prod_data.csv`.
-3.  Every **k=10** new entries, the API triggers a re-training on `ref_data + prod_data`.
-4.  The API **Hot-Swaps** the global `MODEL` variable in memory for zero-downtime updates.
+## 🔗 Accès aux Interfaces
 
-## 📊 Monitoring Metrics
+Une fois les conteneurs lancés :
 
-The `reporting` service generates Evidently snapshots including:
-*   **Classification Quality**: F1-Score, Precision, Recall, Balanced Accuracy.
-*   **Data Drift**: Statistical drift detection on PCA features and target.
+| Service | URL | Description |
+| :--- | :--- | :--- |
+| **Web App** | [http://localhost:8081](http://localhost:8081) | Uploadez un CSV (`data/test_samples.csv` fourni) pour tester. |
+| **Monitoring** | [http://localhost:8082](http://localhost:8082) | Tableau de bord Evidently (Data Drift, Accuracy...). Allez dans l'onglet **Reports**. |
+| **API Docs** | [http://localhost:8080/docs](http://localhost:8080/docs) | Documentation Swagger de l'API. |
 
-To manually trigger a report update:
-```bash
-docker exec reporting python project.py
+---
+
+## ✅ Conformité au Sujet (Technical Documentation)
+
+Ce projet respecte scrupuleusement les 5 points du cahier des charges :
+
+### I. Préparation des Données
+- Utilisation de `StandardScaler` et `PCA` (3 composantes conservées).
+- Séparation stricte Train/Test.
+
+### II. API de Serving (FastAPI)
+- Endpoint `/predict` fonctionnel.
+- Chargement des modèles (`model.pickle`, `pca.pickle`, etc.) au démarrage via `@app.on_event("startup")` (Variables Globales).
+
+### III. Interface Web (Streamlit)
+- Upload de fichier CSV supporté.
+- **Batch Testing** : Prédiction possible sur tout un fichier d'un coup.
+- **Feedback Loop** : Interface permettant de corriger les prédictions et d'envoyer la vérité terrain à l'API.
+
+### IV. Reporting (Evidently)
+- Calcul du **Data Drift** sur les nouvelles données de production.
+- Métriques de Classification : **F1-Score, Accuracy, Recall, Precision**.
+- Les rapports sont générés et stockés dans un **Workspace Evidently** persistent.
+
+### V. Ré-entraînement Continu (CD)
+- Endpoint `/feedback` qui enregistre les données dans `prod_data.csv`.
+- **Seuil K=10** : Le ré-entraînement se déclenche automatiquement tous les 10 feedbacks.
+- **Hot-Swap** : Le modèle en production est mis à jour "à chaud" en mémoire sans interruption de service.
+
+---
+
+## � Structure du Projet
 ```
-
-## 🛠️ Requirements & Dependencies
-*   Python 3.10
-*   FastAPI & Uvicorn
-*   Streamlit
-*   Scikit-learn
-*   Evidently (v0.5.0)
-*   Pandas & NumPy
+.
+├── artifacts/          # Modèles entraînés (.pickle)
+├── data/               # Données (mushrooms.csv, ref_data.csv, prod_data.csv)
+├── serving/            # API FastAPI + Dockerfile
+├── webapp/             # Application Streamlit + Dockerfile
+├── reporting/          # Script Evidently + Dockerfile
+├── scripts/            # Scripts de training et génération de données
+└── docker-compose.yml  # (Découpé en 3 fichiers spécifiques par dossier)
+```
